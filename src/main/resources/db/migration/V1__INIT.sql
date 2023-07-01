@@ -1,10 +1,11 @@
 create table users
 (
     id             serial primary key,
-    firstName varchar(255),
-    lastName varchar(255),
+    first_name varchar(255),
+    last_name varchar(255),
     username varchar(255),
-    password varchar(255)
+    vk_token varchar(255),
+    vk_token_expiration timestamp without time zone
 );
 
 create table jwt_token

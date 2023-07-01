@@ -11,7 +11,7 @@ import org.hibernate.annotations.GenericGenerator;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "jwt_token")
-public class JwtToken {
+public class JwtRefreshToken {
     @Id
     @Column(name = "id")
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "pet_seq")

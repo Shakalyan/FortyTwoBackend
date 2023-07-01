@@ -3,22 +3,26 @@ package ru.nsu.fortytwobackend.security;
 import io.jsonwebtoken.Claims;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.nsu.fortytwobackend.entities.JwtToken;
+import ru.nsu.fortytwobackend.entities.JwtRefreshToken;
 import ru.nsu.fortytwobackend.entities.User;
+import ru.nsu.fortytwobackend.entities.VkToken;
 import ru.nsu.fortytwobackend.repositories.UserRepository;
 import ru.nsu.fortytwobackend.security.exceptions.LoginException;
 import ru.nsu.fortytwobackend.security.exceptions.RefreshException;
 import ru.nsu.fortytwobackend.security.jwt.JwtProvider;
-import ru.nsu.fortytwobackend.security.jwt.dto.CredentialsDto;
 import ru.nsu.fortytwobackend.security.jwt.dto.JwtLoginResponseDto;
 import ru.nsu.fortytwobackend.security.jwt.dto.JwtRefreshResponseDto;
+import ru.nsu.fortytwobackend.security.oauth2.dto.ResourceAccessTokenDto;
+import ru.nsu.fortytwobackend.vk.VkService;
 
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalTime;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -27,26 +31,42 @@ import java.util.function.Supplier;
 public class AuthService implements UserService {
     private final UserRepository userRepository;
     private final JwtProvider jwtProvider;
-    private final PasswordEncoder passwordEncoder;
+    private final VkService vkService;
 
     @Transactional
-    public @NonNull JwtLoginResponseDto login(@NonNull final CredentialsDto authRequest) {
-        final Supplier<LoginException> loginExceptionSupplier = () -> new LoginException("Incorrect login or password");
+    public @NonNull JwtLoginResponseDto login(final @NonNull ResourceAccessTokenDto resourceAccessTokenDto) {
+        final Supplier<LoginException> loginExceptionSupplier = () -> new LoginException("Failed to login");
 
-        final User user = userRepository.getByUsername(authRequest.username())
-                .orElseThrow(loginExceptionSupplier);
+        final Long userId = Long.valueOf(resourceAccessTokenDto.getUserId());
+        final var userOpt = userRepository.findById(userId);
+        if(userOpt.isEmpty()){
+            final var userInfo = vkService.getUserInfoById(userId, resourceAccessTokenDto.getAccessToken())
+                    .orElseThrow(loginExceptionSupplier);
 
-        if (!passwordEncoder.matches(authRequest.password(), user.getPassword())) {
-            throw loginExceptionSupplier.get();
+            final User user = new User();
+            user.setId(userId);
+            user.setUsername("%s_%s".formatted(userInfo.getFirstName(), userInfo.getLastName()));
+            user.setFirstName(userInfo.getFirstName());
+            user.setLastName(userInfo.getLastName());
+
+            final Timestamp vkTokenExpirationTime = resourceAccessTokenDto.getExpiresInSeconds() == 0?
+                    Timestamp.from(Instant.MAX) :
+                    Timestamp.from(Instant.now().plusSeconds(resourceAccessTokenDto.getExpiresInSeconds()));
+
+            user.setVkToken(new VkToken(resourceAccessTokenDto.getAccessToken(), vkTokenExpirationTime));
+            userRepository.save(user);
         }
+
+        final User user = userRepository.findById(userId)
+                .orElseThrow(loginExceptionSupplier);
 
         final Set<Role> userRoles = Set.of(Role.USER);
         final JwtLoginResponseDto jwtLoginResponseDto = generateJwtResponse(user, userRoles);
-        final JwtToken jwtToken = JwtToken.builder()
+        final JwtRefreshToken jwtRefreshToken = JwtRefreshToken.builder()
                 .refreshToken(jwtLoginResponseDto.getRefreshToken())
                 .user(user)
                 .build();
-        user.getTokens().add(jwtToken);
+        user.getTokens().add(jwtRefreshToken);
         userRepository.save(user);
         return jwtLoginResponseDto;
     }
@@ -66,7 +86,7 @@ public class AuthService implements UserService {
                 .orElseThrow(refreshExceptionSupplier);
 
         final boolean isJwtTokenExists = user.getTokens().stream()
-                .map(JwtToken::getRefreshToken)
+                .map(JwtRefreshToken::getRefreshToken)
                 .anyMatch(refreshToken::equals);
 
         if (!isJwtTokenExists) {
@@ -78,34 +98,17 @@ public class AuthService implements UserService {
         return new JwtRefreshResponseDto(accessToken);
     }
 
-    private @NonNull JwtLoginResponseDto generateJwtResponse(@NonNull final User user,
-                                                             @NonNull final Set<? extends Role> roles) {
-        final String accessToken = jwtProvider.generateAccessToken(user.getUsername(), roles);
-        final String refreshToken = jwtProvider.generateRefreshToken(user.getUsername());
-        return new JwtLoginResponseDto(accessToken, refreshToken);
-    }
-
     @Override
-    public User getCurrentUser() {
+    public @NonNull User getCurrentUser() {
         String username = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return userRepository.getByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User with username: " + username + "not found"));
     }
 
-//    public void singUp(CredentialsDto credentials) {
-//        if(userRepository.getByUsername(credentials.username()).isPresent()) {
-//            throw new SignUpException(String.format("User with username %s already exists", credentials.username()));
-//        }
-//
-//        User user = createUser(credentials);
-//        userRepository.save(user);
-//    }
-
-    @NotNull
-    private User createUser(CredentialsDto credentials) {
-        User user = new User();
-        user.setUsername(credentials.username());
-        user.setPassword(passwordEncoder.encode(credentials.password()));
-        return user;
+    private @NonNull JwtLoginResponseDto generateJwtResponse(@NonNull final User user,
+                                                             @NonNull final Set<? extends Role> roles) {
+        final String accessToken = jwtProvider.generateAccessToken(user.getUsername(), roles);
+        final String refreshToken = jwtProvider.generateRefreshToken(user.getUsername());
+        return new JwtLoginResponseDto(accessToken, refreshToken);
     }
 }

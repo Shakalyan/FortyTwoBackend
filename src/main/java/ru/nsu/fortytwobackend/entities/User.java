@@ -3,8 +3,8 @@ package ru.nsu.fortytwobackend.entities;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.GenericGenerator;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Getter
@@ -12,10 +12,9 @@ import java.util.Set;
 @Entity
 @Table(name = "users")
 public class User {
+    //Всегда должно совпадать с идентификатором в vk
     @Id
     @Column(name = "id")
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "pet_seq")
-    @GenericGenerator(name = "pet_seq", strategy = "increment")
     private Long id;
 
     @Column(name = "first_name")
@@ -24,12 +23,13 @@ public class User {
     @Column(name = "last_name")
     private String lastName;
 
-    @Column(name = "usename")
+    @Column(name = "username")
     private String username;
 
-    @Column(name = "password")
-    private String password;
-    
+    //не 3 НФ
+    @Embedded
+    private VkToken vkToken;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private Set<JwtToken> tokens;
+    private Set<JwtRefreshToken> tokens = new HashSet<>();
 }

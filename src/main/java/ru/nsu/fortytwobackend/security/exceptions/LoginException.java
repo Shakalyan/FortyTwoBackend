@@ -6,4 +6,8 @@ public class LoginException extends RuntimeException{
     public LoginException(@NonNull String message){
         super(message);
     }
+
+    public LoginException(@NonNull Throwable cause){
+        super(cause);
+    }
 }
