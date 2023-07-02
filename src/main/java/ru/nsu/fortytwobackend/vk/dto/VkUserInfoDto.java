@@ -2,6 +2,7 @@ package ru.nsu.fortytwobackend.vk.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
@@ -12,6 +13,7 @@ import java.util.List;
 @Value
 @Jacksonized
 @Builder
+@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class VkUserInfoDto {
     @JsonProperty("first_name")

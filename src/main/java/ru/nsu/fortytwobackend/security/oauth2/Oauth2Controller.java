@@ -30,7 +30,7 @@ public class Oauth2Controller {
     }
 
     private @NonNull String getFrontendCallbackUrl(final @NonNull JwtLoginResponseDto responseDto){
-        return "%s/login-callback?access=%s&refresh=%s"
+        return "%s?access=%s&refresh=%s"
                 .formatted(frontendBaseUri, responseDto.getAccessToken(), responseDto.getRefreshToken());
     }
 

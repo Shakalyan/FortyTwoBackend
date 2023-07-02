@@ -32,7 +32,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         config -> config
                                 ///TODO убрать хардкод
-                                .requestMatchers("v1/oauth2", "v1/oauth2/callback").permitAll()
+                                .requestMatchers("v1/oauth2", "v1/oauth2/callback", "v1/jwt-auth/refresh")
+                                .permitAll()
                                 .anyRequest().authenticated()
                                 .and()
                                 .addFilterAfter(jwtFilter, UsernamePasswordAuthenticationFilter.class)

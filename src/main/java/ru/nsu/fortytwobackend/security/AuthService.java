@@ -19,10 +19,8 @@ import ru.nsu.fortytwobackend.security.jwt.dto.JwtRefreshResponseDto;
 import ru.nsu.fortytwobackend.security.oauth2.dto.ResourceAccessTokenDto;
 import ru.nsu.fortytwobackend.vk.VkService;
 
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -106,7 +104,7 @@ public class AuthService implements UserService {
     }
 
     private @NonNull JwtLoginResponseDto generateJwtResponse(@NonNull final User user,
-                                                             @NonNull final Set<? extends Role> roles) {
+                                                             @NonNull final Set<Role> roles) {
         final String accessToken = jwtProvider.generateAccessToken(user.getUsername(), roles);
         final String refreshToken = jwtProvider.generateRefreshToken(user.getUsername());
         return new JwtLoginResponseDto(accessToken, refreshToken);
