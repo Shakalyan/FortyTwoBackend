@@ -1,0 +1,24 @@
+name: Deploy
+
+on:
+  push:
+    branches: 
+    - main
+  workflow_dispatch:
+  
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+    - name: update repo
+      run: |
+        cd ${{ secrets.WORKDIR }}
+        git pull
+    - name: stop containers
+      run: |
+        cd ${{ secrets.WORKDIR }}/..
+        docker-compose down
+    - name: rebuild and start containers
+      run: |
+        cd ${{ secrets.WORKDIR }}/..
+        docker-compose up --force-recreate --build -d
